@@ -61,23 +61,26 @@ class UserController
     }
 
     private function create_user($obj) {
+        $obj['password'] = wp_generate_password(6, false);
         if (email_exists($obj["email"])) {
-            status_header(502);
-            wp_send_json(__('Este e-mail já está em uso!', 'hotwebhookuser'));
+            //TODO: Melhorar esta abordagem, pois a intenção é mapear um reenvio do hotmart.
+            // Talvez a solução seria quebrar em novos métodos e validar corretamente os possíveis cenários.
+            $user = get_user_by( 'email', $obj["email"] );
+            wp_set_password( $obj['password'], $user->ID );
+                        
         } else {
-            $password = wp_generate_password(6, false);
             $userdata = array(
                 'user_login' => $obj['email'],
                 'user_nicename' => $obj['first_name'],
                 'first_name' => $obj['first_name'],
                 'last_name' => $obj['last_name'],
                 'user_email' => $obj['email'],
-                'user_pass' => $password,
+                'user_pass' => $obj['password'],
             );
             wp_insert_user($userdata);
-            $obj['password'] = $password;
-            $this->send_email($obj);
         }
+
+        $this->send_email($obj);        
     }
 
     private function delete_user($obj) {
@@ -95,7 +98,8 @@ class UserController
         $email_service = new \services\EmailService();
 
         $email_service->send_email($dados);
-
+        
+        status_header(200);
         wp_send_json("Done");        
     }
 
